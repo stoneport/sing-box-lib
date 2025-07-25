@@ -28,7 +28,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v3.5.0
         with:
-          go-version: '1.24'
+          go-version: '1.23'
       
       - name: Setup Gomobile
         run: |
@@ -52,7 +52,7 @@ jobs:
           
       - name: Update package file
         run: |
-          echo "// swift-tools-version: 6.2" > Package.swift
+          echo "// swift-tools-version: 5.7" > Package.swift
           echo "" >> Package.swift
           echo "import PackageDescription" >> Package.swift
           echo "" >> Package.swift
