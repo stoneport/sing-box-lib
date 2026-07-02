@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version"
+        description: "Release version (e.g. 1.13.14)"
         required: true
         type: string
       tag:
-        description: "Git Tag to checkout"
+        description: "sing-box source tag (e.g. v1.13.14; v prefix optional)"
         required: true
         type: string
 
@@ -24,24 +24,30 @@ jobs:
       # --- Check out main repository (actions/checkout@v4) ---
       - uses: actions/checkout@v4
 
+      # --- Normalize sing-box tag (ensure v prefix) ---
+      - name: Resolve sing-box tag
+        id: singbox_tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [[ ! "$TAG" =~ ^v ]]; then
+            TAG="v${TAG}"
+          fi
+          echo "Resolved sing-box tag: $TAG"
+          echo "ref=$TAG" >> "$GITHUB_OUTPUT"
+
       # --- Check out sing-box source at the requested tag ---
       - uses: actions/checkout@v4
         with:
           repository: SagerNet/sing-box
           path: box
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ steps.singbox_tag.outputs.ref }}
 
       # --- Set up Go (actions/setup-go@v5) ---
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.26.4"
-
-      # --- Set up Node (actions/setup-node@v4) ---
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
 
       # --- Install gomobile toolchain ---
       - name: Setup Gomobile
