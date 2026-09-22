@@ -1,18 +1,18 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.9
 
 import PackageDescription
 
 let package = Package(
   name: "Libbox",
-  platforms: [.iOS(.v12)],
+  platforms: [.iOS(.v15), .macOS(.v13), .tvOS(.v17)],
   products: [
     .library(name: "Libbox", targets: ["Libbox"]),
   ],
   targets: [
     .binaryTarget(
       name: "Libbox",
-      url: "https://github.com/EbrahimTahernejad/sing-box-lib/releases/download/1.11.11/Libbox.xcframework.zip",
-      checksum: "c5a440e99e3cc52ea7f2a0a483fd973eef8c5dc49518673ae66e95c70ab70db8"
+      url: "https://github.com/stoneport/sing-box-lib/releases/download/1.14.1/Libbox.xcframework.zip",
+      checksum: "9f3b15822f175504c0fba8d56fa0717f776d6215925689e9e5a89e4f4767be53"
     )
   ]
 )
