@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version"
+        description: "Release version (e.g. 1.13.14)"
         required: true
         type: string
       tag:
-        description: "Git Tag to checkout"
+        description: "sing-box source tag (e.g. v1.13.14; v prefix optional)"
         required: true
         type: string
 
@@ -24,24 +24,32 @@ jobs:
       # --- Check out main repository (actions/checkout@v4) ---
       - uses: actions/checkout@v4
 
+      # --- Normalize sing-box tag (ensure v prefix) ---
+      - name: Resolve sing-box tag
+        id: singbox_tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [[ ! "$TAG" =~ ^v ]]; then
+            TAG="v${TAG}"
+          fi
+          echo "Resolved sing-box tag: $TAG"
+          echo "ref=$TAG" >> "$GITHUB_OUTPUT"
+
       # --- Check out sing-box source at the requested tag ---
       - uses: actions/checkout@v4
         with:
           repository: SagerNet/sing-box
           path: box
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ steps.singbox_tag.outputs.ref }}
 
       # --- Set up Go (actions/setup-go@v5) ---
+      # Keep in step with the go-version used by the sing-box tag's own
+      # .github/workflows/linux.yml, not simply the newest Go release.
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23.1"
-
-      # --- Set up Node (actions/setup-node@v4) ---
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+          go-version: "1.26.8"
 
       # --- Install gomobile toolchain ---
       - name: Setup Gomobile
@@ -50,11 +58,15 @@ jobs:
           make lib_install
           gomobile init
 
-      # --- Build the iOS xcframework ---
+      # --- Build the Apple xcframework ---
+      # No -platform override: build_libbox then defaults to
+      # ios,iossimulator,tvos,tvossimulator,macos, so the framework also carries
+      # Simulator slices and consumers can build/test on the Simulator.
+      # Minimum OS versions are set by build_libbox itself (iOS 15 / macOS 13 / tvOS 17).
       - name: Build xcframework
         run: |
           cd box
-          go run ./cmd/internal/build_libbox -target apple -platform ios,tvos,macos
+          go run ./cmd/internal/build_libbox -target apple
           zip -ry ./Libbox.xcframework.zip ./Libbox.xcframework
 
       # --- Generate SHA‑256 checksum for the archive ---
@@ -69,20 +81,21 @@ jobs:
       - name: Update Package.swift
         shell: bash
         run: |
-          echo "// swift-tools-version: 5.7" > Package.swift
+          # 5.9+ is needed for the .tvOS(.v17) platform value below.
+          echo "// swift-tools-version: 5.9" > Package.swift
           echo "" >> Package.swift
           echo "import PackageDescription" >> Package.swift
           echo "" >> Package.swift
           echo "let package = Package(" >> Package.swift
           echo "  name: \"Libbox\"," >> Package.swift
-          echo "  platforms: [.iOS(.v12)]," >> Package.swift
+          echo "  platforms: [.iOS(.v15), .macOS(.v13), .tvOS(.v17)]," >> Package.swift
           echo "  products: [" >> Package.swift
           echo "    .library(name: \"Libbox\", targets: [\"Libbox\"])," >> Package.swift
           echo "  ]," >> Package.swift
           echo "  targets: [" >> Package.swift
           echo "    .binaryTarget(" >> Package.swift
           echo "      name: \"Libbox\"," >> Package.swift
-          echo "      url: \"https://github.com/EbrahimTahernejad/sing-box-lib/releases/download/${{ github.event.inputs.version }}/Libbox.xcframework.zip\"," >> Package.swift
+          echo "      url: \"https://github.com/stoneport/sing-box-lib/releases/download/${{ github.event.inputs.version }}/Libbox.xcframework.zip\"," >> Package.swift
           echo "      checksum: \"${{ env.file_checksum }}\"" >> Package.swift
           echo "    )" >> Package.swift
           echo "  ]" >> Package.swift
@@ -93,8 +106,8 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Libbox Release ${{ github.event.inputs.version }}"
-          commit_user_name: "Ebrahim"
-          commit_user_email: "ebrahimtahernejad@gmail.com"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
           tagging_message: "${{ github.event.inputs.version }}"
           file_pattern: Package.swift
 
